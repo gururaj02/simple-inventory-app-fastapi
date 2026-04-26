@@ -45,35 +45,51 @@ def get_all_products(db: Session = Depends(get_db)):
 
 
 @app.get("/product/{id}")
-def get_product_by_id(id: int):
+def get_product_by_id(id: int, db: Session = Depends(get_db)):
 
-    for product in products:
-        if product.id == id:
-            return product
+    db_product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
+
+    if db_product:
+            return db_product
 
     return "Product Not Found"
 
 
 @app.post("/product")
-def add_product(product: Product):
-    products.append(product)
+def add_product(product: Product, db: Session = Depends(get_db)):
+    db.add(database_models.Product(**product.model_dump()))
+    db.commit()
+    return "Product Added Successfully!"
 
 
 @app.put("/product")
-def update_Product(id: int, product: Product):
-    for i in range(len(products)):
-        if products[i].id == id:
-            products[i] = product
-            return "Product Updated Successfully"
+def update_Product(id: int, product: Product, db: Session = Depends(get_db)):
+    db_product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
     
-    return "No Products Found"
+    if db_product:
+        # db_product.name = product.name
+        # db_product.description = product.description
+        # db_product.price = product.price
+        # db_product.quantity = product.quantity
+
+        update_data = product.model_dump(exclude_unset=True)
+
+        for key, value in update_data.items():
+            setattr(db_product, key, value)
+        db.commit()
+        db.refresh(db_product)
+        return "Product Updated!"
+    else:
+        return "No Products Found"
 
 
 @app.delete("/product/{id}")
-def delete_product(id: int):
-    for i in range(len(products)):
-        if products[i].id == id:
-            del products[i]
-            return f"Product with id {id} Removed Successfully"
-    
-    return "Product Not Found"
+def delete_product(id: int, db: Session = Depends(get_db)):
+    db_product = db.query(database_models.Product).filter(database_models.Product.id == id).first()
+
+    if db_product:
+        db.delete(db_product)
+        db.commit()
+        return f"Product with Id {id} deleted successfully!"
+    else:
+        return "Product Not Found"
